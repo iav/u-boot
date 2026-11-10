@@ -1426,19 +1426,20 @@ static ulong rk3568_sdmmc_get_clk(struct rk3568_clk_priv *priv, ulong clk_id)
 		return -ENOENT;
 	}
 
+	/* The card clock is half of the parent: dw_mmc divides it by 2 */
 	switch (sel) {
 	case CLK_SDMMC_SEL_24M:
-		return OSC_HZ;
+		return OSC_HZ / 2;
 	case CLK_SDMMC_SEL_400M:
-		return 400 * MHz;
+		return 400 * MHz / 2;
 	case CLK_SDMMC_SEL_300M:
-		return 300 * MHz;
+		return 300 * MHz / 2;
 	case CLK_SDMMC_SEL_100M:
-		return 100 * MHz;
+		return 100 * MHz / 2;
 	case CLK_SDMMC_SEL_50M:
-		return 50 * MHz;
+		return 50 * MHz / 2;
 	case CLK_SDMMC_SEL_750K:
-		return 750 * KHz;
+		return 750 * KHz / 2;
 	default:
 		return -ENOENT;
 	}
@@ -1448,34 +1449,22 @@ static ulong rk3568_sdmmc_set_clk(struct rk3568_clk_priv *priv,
 				  ulong clk_id, ulong rate)
 {
 	struct rk3568_cru *cru = priv->cru;
+	ulong parent = rate * 2;
 	int src_clk;
 
-	switch (rate) {
-	case OSC_HZ:
-	case 26 * MHz:
-	case 25 * MHz:
-		src_clk = CLK_SDMMC_SEL_24M;
-		break;
-	case 400 * MHz:
+	/* Fastest parent not above twice the card clock, or the slowest one */
+	if (parent >= 400 * MHz)
 		src_clk = CLK_SDMMC_SEL_400M;
-		break;
-	case 300 * MHz:
+	else if (parent >= 300 * MHz)
 		src_clk = CLK_SDMMC_SEL_300M;
-		break;
-	case 100 * MHz:
+	else if (parent >= 100 * MHz)
 		src_clk = CLK_SDMMC_SEL_100M;
-		break;
-	case 52 * MHz:
-	case 50 * MHz:
+	else if (parent >= 50 * MHz)
 		src_clk = CLK_SDMMC_SEL_50M;
-		break;
-	case 750 * KHz:
-	case 400 * KHz:
+	else if (parent >= OSC_HZ)
+		src_clk = CLK_SDMMC_SEL_24M;
+	else
 		src_clk = CLK_SDMMC_SEL_750K;
-		break;
-	default:
-		return -ENOENT;
-	}
 
 	switch (clk_id) {
 	case HCLK_SDMMC0:
